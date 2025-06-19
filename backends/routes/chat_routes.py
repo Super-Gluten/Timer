@@ -58,6 +58,9 @@ def chat():
 
         elif res['action'] == 'delete':
             response = f"成功删除日程: {res['schedule_title']} (id={res['schedule_id']})"
+
+        elif res['action'] == 'inquery':
+            response = f"成功查询日程：{res['schedule_list']}"
     elif isinstance(res, str):
         response = res
     else:
