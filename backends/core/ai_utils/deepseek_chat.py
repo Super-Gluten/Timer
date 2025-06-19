@@ -1,9 +1,10 @@
+from collections import deque
 class DeepSeekChat:
     def __init__(self):
-        self._conversation_history = []
-        self._dialog_pairs = []
         self.MAX_DIALOG_PAIRS = 5 
         self.TRIM_HISTORY_THRESHOLD = 15
+        self._conversation_history = deque(maxlen=self.TRIM_HISTORY_THRESHOLD*2)
+        self._dialog_pairs = deque(maxlen=self.TRIM_HISTORY_THRESHOLD)
 
     def _add_user_message(self, content: str):
         """添加用户消息到对话历史"""
@@ -12,7 +13,7 @@ class DeepSeekChat:
             "content": content
         })
         
-        if len(self._dialog_pairs)+1 > self.MAX_DIALOG_PAIRS:
+        if len(self._dialog_pairs) + 1 > self.MAX_DIALOG_PAIRS:
             remove_success = self._remove_oldest_complete_pair()
             if not remove_success and len(self._dialog_pairs)+1 > self.TRIM_HISTORY_THRESHOLD :
                 self._trim_history()
@@ -39,14 +40,24 @@ class DeepSeekChat:
             # print("删除最远的对话对失败")
             return False
         
-        start, end = self._dialog_pairs.pop(0)
-        del self._conversation_history[start:end+1]
+        start, end = self._dialog_pairs.popleft()
+        
+        new_history = deque(maxlen=self._conversation_history.maxlen)
+        new_dialog_pairs = deque(maxlen=self.TRIM_HISTORY_THRESHOLD)
 
         offset = end - start + 1
-        self._dialog_pairs = [
-            (new_start - offset, new_end - offset)
-            for new_start, new_end in self._dialog_pairs
-        ]
+        for i, msg in enumerate(self._conversation_history):
+            if i < start or i > end:
+                new_history.append(msg)
+
+        for user_idx, assistant_idx in self._dialog_pairs:
+            new_user_idx = user_idx - offset
+            new_assistant_idx = assistant_idx - offset if assistant_idx is not None else None
+            new_dialog_pairs.append((new_user_idx, new_assistant_idx))
+            
+        self._conversation_history = new_history
+        self._dialog_pairs = new_dialog_pairs
+
         return True
     
     def _trim_history(self):
